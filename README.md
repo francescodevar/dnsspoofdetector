@@ -28,10 +28,10 @@ Su propósito es ayudar a identificar diferencias persistentes que merecen inves
    - DoH de Cloudflare.
    - DoH de Google.
    - DoT del [servicio de Quad9 sin bloqueo de amenazas](https://docs.quad9.net/services/) (`9.9.9.10`, SNI `dns10.quad9.net`).
-3. La aplicación valida las respuestas, normaliza las direcciones IP y elimina duplicados para que el orden de llegada no altere la comparación.
-4. Las respuestas cifradas de tres organizaciones independientes —Cloudflare, Google y Quad9— forman el consenso seguro cuando existe una mayoría suficiente.
+3. La aplicación valida las respuestas y mantiene separados `answers`, `NODATA`, `NXDOMAIN`, timeout, error y transporte no disponible.
+4. Las respuestas cifradas de tres organizaciones independientes —Cloudflare, Google y Quad9— forman el consenso con un quórum fijo de dos organizaciones. Un fallo de transporte se abstiene y no reduce esa mayoría.
 5. El DNS tradicional se compara con ese consenso en las tres rondas. La persistencia permite distinguir una diferencia ocasional de una señal fuerte.
-6. El resultado se presenta con las observaciones originales, latencias, TTL, razones y una puntuación de confianza.
+6. El resultado se presenta mediante topología, línea temporal, matriz de consenso, explicación paso a paso, latencias, razones y una puntuación de confianza.
 
 La clasificación final puede ser:
 
@@ -104,9 +104,12 @@ No se requieren secretos ni variables propias. En Vercel se lee opcionalmente `V
 ## Uso
 
 - **Analizar:** escribe un dominio, elige `A` o `AAAA` y observa el progreso real de tres rondas.
-- **Demostración:** permite reproducir las cuatro clasificaciones sin consultas de red. Todos los datos se marcan como simulados.
+- **Demostración:** incluye cinco casos guiados, entre ellos NODATA con un fallo DoT aislado. Todos los datos se marcan como simulados.
 - **Historial:** guarda hasta 100 análisis en el navegador, filtra, elimina y exporta CSV/JSON.
-- **Laboratorio:** ejecuta secuencialmente hasta diez dominios y exporta el lote.
+- **Laboratorio:** ejecuta secuencialmente hasta diez dominios y calcula disponibilidad, mediana, P95 y respuestas negativas por proveedor.
+- **Modo sustentación:** presenta topología, rondas, matriz, dictamen y limitaciones en cinco láminas a pantalla completa.
+- **Informe PDF:** usa la impresión nativa del navegador para generar un documento académico A4.
+- **Rastreo:** sigue de forma experimental referencias reales raíz → TLD → autoritativo con consultas no recursivas y límites de seguridad.
 - **Diagnóstico:** comprueba disponibilidad de cada proveedor y confirma si DoT funciona en el entorno.
 - **Metodología:** documenta reglas, confianza, falsos positivos y limitaciones.
 
@@ -119,7 +122,8 @@ No se requieren secretos ni variables propias. En Vercel se lee opcionalmente `V
 5. Desplegar en el plan gratuito Hobby.
 6. Abrir `/diagnostico` y ejecutar la comprobación.
 7. Confirmar DNS y DoH, y documentar si DoT responde o muestra `timeout`/`unsupported`.
-8. Probar un dominio válido con `A` y `AAAA`, el modo demostración, historial y descargas.
+8. Abrir `/rastreo`; si la plataforma bloquea UDP/TCP 53, la herramienta lo indicará sin inventar resultados.
+9. Probar un dominio válido con `A` y `AAAA`, el modo demostración, historial, sustentación e informe PDF.
 
 El repositorio fija Fluid Compute y la región `iad1` en `vercel.json`. No se debe cambiar a Edge Runtime: `node:dns`, `node:tls` y los sockets DoT requieren Node.js.
 
@@ -141,7 +145,8 @@ Al 21 de julio de 2026, `npm audit --omit=dev` informa dos hallazgos moderados d
 - El punto de observación es el servidor, no el router del visitante.
 - Las cinco rutas representan tres organizaciones: Cloudflare y Google participan por dos transportes, mientras Quad9 participa mediante DoT. El consenso cifrado sí contiene un observador de cada organización.
 - DoT por TCP 853 puede estar bloqueado por el hosting o la red.
-- El sistema compara direcciones IP; no valida cadenas DNSSEC ni atribuye IP a ASN/CDN.
+- El sistema compara direcciones IP y respuestas negativas; no valida cadenas DNSSEC ni atribuye IP a ASN/CDN.
+- El rastreo directo solo consulta IPv4 públicas, no sigue cadenas CNAME completas y puede estar bloqueado por el hosting.
 - No existe rate limiting persistente. El servidor limita cada análisis a tres rondas y cinco proveedores, pero estas restricciones funcionales no sustituyen un control antiabuso.
 
 ## Documentación

@@ -2,10 +2,10 @@
 
 import { useRef, useState } from "react";
 import { analyzeDomain } from "@/app/actions";
-import { AnalysisResultView } from "@/components/analysis-result";
-import { buildAnalysisResult, createDemoResult } from "@/lib/analysis";
+import { AnalysisResultView, AnalysisTopology } from "@/components/analysis-result";
+import { buildAnalysisResult, createDemoResult, DEMO_SCENARIOS, type DemoScenarioId } from "@/lib/analysis";
 import { saveAnalysis } from "@/lib/storage";
-import type { AnalysisResult, AnalysisRound, Classification, RecordType } from "@/lib/types";
+import type { AnalysisResult, AnalysisRound, RecordType } from "@/lib/types";
 
 type Step = "pending" | "running" | "done" | "error";
 
@@ -13,8 +13,9 @@ export function AnalysisClient() {
   const [domain, setDomain] = useState("example.com");
   const [recordType, setRecordType] = useState<RecordType>("A");
   const [mode, setMode] = useState<"real" | "demo">("real");
-  const [demoClassification, setDemoClassification] = useState<Classification>("possible_inconsistency");
+  const [demoScenario, setDemoScenario] = useState<DemoScenarioId>("persistent_mismatch");
   const [steps, setSteps] = useState<Step[]>(["pending", "pending", "pending"]);
+  const [completedRounds, setCompletedRounds] = useState<AnalysisRound[]>([]);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -26,11 +27,12 @@ export function AnalysisClient() {
     setError("");
     setSaved(false);
     setAnalysis(null);
+    setCompletedRounds([]);
     setSteps(["pending", "pending", "pending"]);
 
     if (mode === "demo") {
       try {
-        setAnalysis(createDemoResult(demoClassification, recordType));
+        setAnalysis(createDemoResult(demoScenario, recordType));
         setSteps(["done", "done", "done"]);
         requestAnimationFrame(() => document.getElementById("analysis-result-title")?.focus());
       } catch {
@@ -56,6 +58,7 @@ export function AnalysisClient() {
         }
         normalizedDomain = response.data.domain;
         rounds.push(response.data.round);
+        setCompletedRounds([...rounds]);
         setSteps((current) => current.map((step, item) => item === index ? "done" : step));
       }
       const completed = buildAnalysisResult({
@@ -114,9 +117,10 @@ export function AnalysisClient() {
           {mode === "demo" && (
             <label className="field">
               <span>Escenario</span>
-              <select value={demoClassification} onChange={(event) => setDemoClassification(event.target.value as Classification)}>
-                <option value="consistent">Consistente</option><option value="warning">Advertencia</option><option value="possible_inconsistency">Posible inconsistencia</option><option value="inconclusive">No concluyente</option>
+              <select value={demoScenario} onChange={(event) => setDemoScenario(event.target.value as DemoScenarioId)}>
+                {Object.entries(DEMO_SCENARIOS).map(([id, scenario]) => <option key={id} value={id}>{scenario.label}</option>)}
               </select>
+              <small><strong>Resultado esperado:</strong> {DEMO_SCENARIOS[demoScenario].expected}. {DEMO_SCENARIOS[demoScenario].observe}</small>
             </label>
           )}
         </div>
@@ -129,6 +133,8 @@ export function AnalysisClient() {
 
         <button className="button button-primary button-large" disabled={running}>{running ? "Analizando…" : mode === "demo" ? "Mostrar demostración" : "Analizar dominio"}</button>
       </form>
+
+      {running && <section className="panel live-topology" aria-live="polite"><div className="section-heading"><div><p className="eyebrow">Progreso real</p><h2>Cinco consultas en paralelo</h2></div><span className="data-count">Ronda {completedRounds.length + 1}/3</span></div><AnalysisTopology rounds={completedRounds} running /></section>}
 
       {analysis && <AnalysisResultView analysis={analysis} onSave={save} saved={saved} />}
     </>

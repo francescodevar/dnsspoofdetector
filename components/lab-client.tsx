@@ -4,6 +4,7 @@ import { useState } from "react";
 import { analyzeDomain } from "@/app/actions";
 import { AnalysisResultView } from "@/components/analysis-result";
 import { buildAnalysisResult } from "@/lib/analysis";
+import { PROVIDERS } from "@/lib/providers";
 import { downloadAnalyses } from "@/lib/storage";
 import type { AnalysisResult, AnalysisRound, RecordType } from "@/lib/types";
 
@@ -16,6 +17,28 @@ export function LabClient() {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ completed: 0, total: 0, label: "" });
   const domains = text.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+  const observations = results.flatMap((result) => result.rounds.flatMap((round) => round.providerResults));
+  const classificationCounts = Object.entries(results.reduce<Record<string, number>>((counts, result) => {
+    counts[result.classification] = (counts[result.classification] ?? 0) + 1;
+    return counts;
+  }, {}));
+  const averageConfidence = results.length
+    ? Math.round(results.reduce((sum, result) => sum + result.confidence, 0) / results.length)
+    : 0;
+  const providerStats = PROVIDERS.map((provider) => {
+    const rows = observations.filter((item) => item.providerId === provider.id);
+    const latencies = rows.flatMap((item) => item.latencyMs == null ? [] : [item.latencyMs]).sort((a, b) => a - b);
+    const percentile95 = latencies.length ? latencies[Math.ceil(latencies.length * .95) - 1] : null;
+    return {
+      id: provider.id,
+      name: provider.name,
+      availability: rows.length ? Math.round(rows.filter((item) => item.status === "success").length / rows.length * 100) : 0,
+      median: latencies.length ? latencies[Math.floor((latencies.length - 1) / 2)] : null,
+      percentile95,
+      nodata: rows.filter((item) => item.answerKind === "nodata").length,
+      nxdomain: rows.filter((item) => item.answerKind === "nxdomain").length,
+    };
+  });
 
   async function run(event: React.FormEvent) {
     event.preventDefault();
@@ -79,6 +102,7 @@ export function LabClient() {
       </form>
 
       {results.length > 0 && <section className="panel"><div className="section-heading"><div><p className="eyebrow">Resultados del lote</p><h2>{results.length} análisis completados</h2></div></div><div className="table-scroll"><table><thead><tr><th>Dominio</th><th>Clasificación</th><th>Confianza</th><th>Duración</th><th></th></tr></thead><tbody>{results.map((result) => <tr key={result.id}><td><strong>{result.domain}</strong></td><td>{result.classification.replaceAll("_", " ")}</td><td>{result.confidence}/100</td><td>{result.durationMs} ms</td><td><button className="text-button" onClick={() => setSelected(result)}>Ver evidencia</button></td></tr>)}</tbody></table></div><div className="action-row"><button className="button button-secondary" onClick={() => downloadAnalyses(results, "csv")}>Exportar lote CSV</button><button className="button button-secondary" onClick={() => downloadAnalyses(results, "json")}>Exportar lote JSON</button></div></section>}
+      {results.length > 0 && <section className="panel lab-statistics" aria-labelledby="lab-statistics-title"><div className="section-heading"><div><p className="eyebrow">Lectura agregada</p><h2 id="lab-statistics-title">Estadísticas del lote</h2></div><span className="data-count">Confianza media {averageConfidence}/100</span></div><div className="lab-kpis"><article><small>Completados</small><strong>{results.length}</strong></article><article><small>Errores</small><strong>{errors.length}</strong></article>{classificationCounts.map(([classification, count]) => <article key={classification}><small>{classification.replaceAll("_", " ")}</small><strong>{count}</strong></article>)}</div><div className="table-scroll"><table><thead><tr><th>Proveedor</th><th>Disponibilidad</th><th>Mediana</th><th>P95</th><th>NODATA</th><th>NXDOMAIN</th></tr></thead><tbody>{providerStats.map((stat) => <tr key={stat.id}><td><strong>{stat.name}</strong></td><td>{stat.availability}%</td><td>{stat.median == null ? "—" : `${stat.median} ms`}</td><td>{stat.percentile95 == null ? "—" : `${stat.percentile95} ms`}</td><td>{stat.nodata}</td><td>{stat.nxdomain}</td></tr>)}</tbody></table></div></section>}
       {selected && <AnalysisResultView analysis={selected} />}
     </>
   );

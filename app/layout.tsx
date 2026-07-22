@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 const navigation = [
   ["/analizar", "Analizar"], ["/historial", "Historial"], ["/laboratorio", "Laboratorio"],
-  ["/diagnostico", "Diagnóstico"], ["/metodologia", "Metodología"],
+  ["/rastreo", "Rastreo"], ["/diagnostico", "Diagnóstico"], ["/metodologia", "Metodología"],
 ];
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

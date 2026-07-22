@@ -9,6 +9,11 @@ export const providerStatusSchema = z.enum([
   "unsupported",
 ]);
 export const answerKindSchema = z.enum(["answers", "nxdomain", "nodata"]);
+export const consensusOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("answers"), addresses: z.array(z.string()).min(1) }),
+  z.object({ kind: z.literal("nodata") }),
+  z.object({ kind: z.literal("nxdomain") }),
+]);
 export const classificationSchema = z.enum([
   "consistent",
   "warning",
@@ -79,6 +84,38 @@ export const analyzeRoundInputSchema = z.object({
   round: z.number().int().min(1).max(3),
 });
 
+export const traceInputSchema = z.object({
+  domain: z.string().min(1).max(1024),
+  recordType: recordTypeSchema,
+});
+
+export const traceStepSchema = z.object({
+  stage: z.string().min(1),
+  zone: z.string().min(1),
+  serverName: z.string().nullable(),
+  serverIp: z.string(),
+  transport: z.enum(["UDP", "TCP"]),
+  rcode: z.string(),
+  authoritative: z.boolean(),
+  latencyMs: z.number().int().nonnegative(),
+  status: z.enum(["referral", "answers", "nodata", "nxdomain", "cname", "error"]),
+  nameservers: z.array(z.string()),
+  glue: z.array(z.string()),
+  addresses: z.array(z.string()),
+  cnames: z.array(z.string()),
+  bootstrap: z.boolean(),
+  errorMessage: z.string().optional(),
+});
+
+export const traceResultSchema = z.object({
+  domain: z.string(),
+  recordType: recordTypeSchema,
+  createdAt: z.string().datetime(),
+  steps: z.array(traceStepSchema).max(6),
+  finalStatus: z.enum(["answers", "nodata", "nxdomain", "cname", "unavailable"]),
+  finalMessage: z.string(),
+});
+
 export const diagnosticResultSchema = z.object({
   checkedAt: z.string().datetime(),
   region: z.string().nullable(),
@@ -95,12 +132,15 @@ export type RecordType = z.infer<typeof recordTypeSchema>;
 export type Protocol = z.infer<typeof protocolSchema>;
 export type ProviderStatus = z.infer<typeof providerStatusSchema>;
 export type AnswerKind = z.infer<typeof answerKindSchema>;
+export type ConsensusOutcome = z.infer<typeof consensusOutcomeSchema>;
 export type Classification = z.infer<typeof classificationSchema>;
 export type ProviderId = z.infer<typeof providerIdSchema>;
 export type ProviderResult = z.infer<typeof providerResultSchema>;
 export type AnalysisRound = z.infer<typeof analysisRoundSchema>;
 export type AnalysisResult = z.infer<typeof analysisResultSchema>;
 export type DiagnosticResult = z.infer<typeof diagnosticResultSchema>;
+export type TraceStep = z.infer<typeof traceStepSchema>;
+export type TraceResult = z.infer<typeof traceResultSchema>;
 
 export type AnalyzeRoundData = {
   domain: string;
