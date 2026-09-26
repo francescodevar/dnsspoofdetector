@@ -1,5 +1,7 @@
 # DNSSpoofDetector
 
+Link de la documentacion de la titulacion: https://docs.google.com/document/d/1HlyNSqZVBKIQtmA5sMD89qeeljUyI2SFTBoKtaEFS1Q/edit?usp=sharing
+
 ## ¿Qué es?
 
 DNSSpoofDetector es una aplicación web académica para observar si diferentes rutas de resolución DNS entregan resultados compatibles para un mismo dominio. Compara registros IPv4 (`A`) o IPv6 (`AAAA`) mediante DNS tradicional, DNS sobre HTTPS (DoH) y DNS sobre TLS (DoT).
